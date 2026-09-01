@@ -1,7 +1,7 @@
 /**
  * PDF Image Formatter — Core Application Logic
  * Native HTML/CSS/Vanilla JS (100% Client-Side)
- * Supports Multi-Sheet Pagination & Horizontal (Landscape) Layout
+ * Feature: Manual Multi-Sheet Management (Tambah Kertas Baru)
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -9,11 +9,16 @@ document.addEventListener('DOMContentLoaded', () => {
   // 1. Application State
   // ==========================================
   const state = {
-    dateText: '1 AGUSTUS 2026',
-    images: [], // Array of { id, name, sizeFormatted, dataUrl }
+    activeSheetId: 'sheet_1',
+    sheets: [
+      {
+        id: 'sheet_1',
+        dateText: '1 AGUSTUS 2026',
+        images: []
+      }
+    ],
     gridCols: 3,
-    paperSize: 'a4-landscape', // Default Horizontal
-    imagesPerSheet: 6 // Default 6 images per sheet
+    paperSize: 'a4-landscape'
   };
 
   // SortableJS Instance
@@ -22,9 +27,14 @@ document.addEventListener('DOMContentLoaded', () => {
   // ==========================================
   // 2. DOM Elements
   // ==========================================
+  const addSheetBtnHeader = document.getElementById('addSheetBtnHeader');
+  const sheetTabsContainer = document.getElementById('sheetTabsContainer');
+  const activeSheetTitleLabel = document.getElementById('activeSheetTitleLabel');
+
   const dateInput = document.getElementById('dateInput');
   const todayPresetBtn = document.getElementById('todayPresetBtn');
   const uppercaseBtn = document.getElementById('uppercaseBtn');
+  const applyAllDatesBtn = document.getElementById('applyAllDatesBtn');
 
   const dropZone = document.getElementById('dropZone');
   const fileInput = document.getElementById('fileInput');
@@ -36,7 +46,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const gridColsSelect = document.getElementById('gridColsSelect');
   const paperSizeSelect = document.getElementById('paperSizeSelect');
-  const imagesPerSheetSelect = document.getElementById('imagesPerSheetSelect');
   const generatePdfBtn = document.getElementById('generatePdfBtn');
 
   const previewSheetsContainer = document.getElementById('previewSheetsContainer');
@@ -44,12 +53,18 @@ document.addEventListener('DOMContentLoaded', () => {
   const aspectTag = document.getElementById('aspectTag');
   const toastContainer = document.getElementById('toastContainer');
 
-  // Set initial input value
-  dateInput.value = state.dateText;
-
   // ==========================================
   // 3. Helper Functions
   // ==========================================
+  function getActiveSheet() {
+    let sheet = state.sheets.find(s => s.id === state.activeSheetId);
+    if (!sheet && state.sheets.length > 0) {
+      sheet = state.sheets[0];
+      state.activeSheetId = sheet.id;
+    }
+    return sheet;
+  }
+
   function showToast(message, type = 'success') {
     const toast = document.createElement('div');
     toast.className = `toast toast-${type}`;
@@ -101,7 +116,7 @@ document.addEventListener('DOMContentLoaded', () => {
     return `${day} ${month} ${year}`;
   }
 
-  // Optimize & Resize Image Client-side via Canvas
+  // Compress & Resize Image Client-side via Canvas
   function compressImage(file, maxDimension = 1400, quality = 0.85) {
     return new Promise((resolve, reject) => {
       const reader = new FileReader();
@@ -127,7 +142,6 @@ document.addEventListener('DOMContentLoaded', () => {
           const ctx = canvas.getContext('2d');
           ctx.drawImage(img, 0, 0, width, height);
 
-          // Return Data URL
           const mimeType = file.type === 'image/png' ? 'image/png' : 'image/jpeg';
           resolve(canvas.toDataURL(mimeType, quality));
         };
@@ -140,9 +154,61 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ==========================================
-  // 4. File Upload & Processing
+  // 4. Sheet Management (Tambah Kertas)
+  // ==========================================
+  function addNewSheet() {
+    const sheetNum = state.sheets.length + 1;
+    const lastDate = getActiveSheet() ? getActiveSheet().dateText : '1 AGUSTUS 2026';
+    const newSheet = {
+      id: 'sheet_' + Date.now(),
+      dateText: lastDate,
+      images: []
+    };
+
+    state.sheets.push(newSheet);
+    state.activeSheetId = newSheet.id;
+    renderUI();
+    showToast(`Kertas ${sheetNum} berhasil ditambahkan!`);
+  }
+
+  function removeSheet(sheetId, e) {
+    if (e) e.stopPropagation();
+
+    if (state.sheets.length <= 1) {
+      showToast('Minimal harus ada 1 Kertas.', 'error');
+      return;
+    }
+
+    const indexToRemove = state.sheets.findIndex(s => s.id === sheetId);
+    if (indexToRemove === -1) return;
+
+    state.sheets.splice(indexToRemove, 1);
+
+    if (state.activeSheetId === sheetId) {
+      const newActiveIdx = Math.max(0, indexToRemove - 1);
+      state.activeSheetId = state.sheets[newActiveIdx].id;
+    }
+
+    renderUI();
+    showToast('Kertas berhasil dihapus.', 'error');
+  }
+
+  function applyDateToAllSheets() {
+    const currentActiveDate = dateInput.value;
+    state.sheets.forEach(sheet => {
+      sheet.dateText = currentActiveDate;
+    });
+    renderUI();
+    showToast('Tanggal disamakan ke semua kertas.');
+  }
+
+  // ==========================================
+  // 5. File Upload & Processing
   // ==========================================
   async function handleFiles(files) {
+    const activeSheet = getActiveSheet();
+    if (!activeSheet) return;
+
     const validFiles = Array.from(files).filter(file => 
       ['image/jpeg', 'image/png', 'image/webp'].includes(file.type)
     );
@@ -162,7 +228,7 @@ document.addEventListener('DOMContentLoaded', () => {
           sizeFormatted: formatFileSize(file.size),
           dataUrl: optimizedDataUrl
         };
-        state.images.push(newImgObj);
+        activeSheet.images.push(newImgObj);
         addedCount++;
       } catch (err) {
         console.error('Error processing image:', err);
@@ -170,7 +236,7 @@ document.addEventListener('DOMContentLoaded', () => {
     }
 
     if (addedCount > 0) {
-      showToast(`Berhasil menambahkan ${addedCount} gambar.`);
+      showToast(`Ditambahkan ${addedCount} gambar ke ${activeSheetTitleLabel.textContent}.`);
       renderUI();
     }
   }
@@ -181,7 +247,7 @@ document.addEventListener('DOMContentLoaded', () => {
   fileInput.addEventListener('change', (e) => {
     if (e.target.files && e.target.files.length > 0) {
       handleFiles(e.target.files);
-      fileInput.value = ''; // Reset input
+      fileInput.value = '';
     }
   });
 
@@ -209,12 +275,14 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // ==========================================
-  // 5. Reordering & SortableJS
+  // 6. Reordering & SortableJS
   // ==========================================
   function initSortable() {
     if (sortableInstance) {
       sortableInstance.destroy();
     }
+
+    const activeSheet = getActiveSheet();
 
     sortableInstance = new Sortable(thumbnailList, {
       animation: 180,
@@ -222,36 +290,88 @@ document.addEventListener('DOMContentLoaded', () => {
       ghostClass: 'sortable-ghost',
       chosenClass: 'sortable-chosen',
       onEnd: function () {
-        // Synchronize JS state array with DOM order
         const itemElements = thumbnailList.querySelectorAll('.thumb-item');
         const newImagesArray = [];
 
         itemElements.forEach(el => {
           const imgId = el.getAttribute('data-id');
-          const found = state.images.find(img => img.id === imgId);
+          const found = activeSheet.images.find(img => img.id === imgId);
           if (found) {
             newImagesArray.push(found);
           }
         });
 
-        state.images = newImagesArray;
-        renderPreviewGrid(); // Update preview sheets without rebuilding list
+        activeSheet.images = newImagesArray;
+        renderPreviewGrid();
       }
     });
   }
 
   // ==========================================
-  // 6. UI Render Functions
+  // 7. UI Render Functions
   // ==========================================
   function renderUI() {
-    renderThumbnailList();
+    renderSheetTabs();
+    renderActiveSheetControls();
     renderPreviewGrid();
   }
 
-  function renderThumbnailList() {
+  function renderSheetTabs() {
+    sheetTabsContainer.innerHTML = '';
+
+    state.sheets.forEach((sheet, idx) => {
+      const isSelected = sheet.id === state.activeSheetId;
+      const tabEl = document.createElement('div');
+      tabEl.className = `sheet-tab-item ${isSelected ? 'active' : ''}`;
+      
+      const dateDisplay = sheet.dateText.trim() || 'TANGGAL BELUM DIISI';
+
+      tabEl.innerHTML = `
+        <div class="sheet-tab-info">
+          <span class="sheet-tab-badge">${idx + 1}</span>
+          <div class="sheet-tab-text">
+            <span class="sheet-tab-title">Kertas ${idx + 1} — ${escapeHtml(dateDisplay)}</span>
+            <span class="sheet-tab-sub">${sheet.images.length} Gambar</span>
+          </div>
+        </div>
+        ${state.sheets.length > 1 ? `
+          <button type="button" class="btn-remove-sheet" title="Hapus Kertas Ini">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <line x1="18" y1="6" x2="6" y2="18"/>
+              <line x1="6" y1="6" x2="18" y2="18"/>
+            </svg>
+          </button>
+        ` : ''}
+      `;
+
+      tabEl.addEventListener('click', () => {
+        state.activeSheetId = sheet.id;
+        renderUI();
+      });
+
+      const removeBtn = tabEl.querySelector('.btn-remove-sheet');
+      if (removeBtn) {
+        removeBtn.addEventListener('click', (e) => removeSheet(sheet.id, e));
+      }
+
+      sheetTabsContainer.appendChild(tabEl);
+    });
+  }
+
+  function renderActiveSheetControls() {
+    const activeSheet = getActiveSheet();
+    const sheetIdx = state.sheets.findIndex(s => s.id === state.activeSheetId) + 1;
+
+    activeSheetTitleLabel.textContent = `Judul Tanggal Kertas ${sheetIdx}`;
+    dateInput.value = activeSheet.dateText;
+
+    renderThumbnailList(activeSheet);
+  }
+
+  function renderThumbnailList(activeSheet) {
     thumbnailList.innerHTML = '';
 
-    if (state.images.length === 0) {
+    if (activeSheet.images.length === 0) {
       emptyState.style.display = 'flex';
       clearAllBtn.style.display = 'none';
       imageCountBadge.textContent = '0 Gambar';
@@ -260,9 +380,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     emptyState.style.display = 'none';
     clearAllBtn.style.display = 'flex';
-    imageCountBadge.textContent = `${state.images.length} Gambar`;
+    imageCountBadge.textContent = `${activeSheet.images.length} Gambar`;
 
-    state.images.forEach((img, idx) => {
+    activeSheet.images.forEach((img, idx) => {
       const li = document.createElement('li');
       li.className = 'thumb-item';
       li.setAttribute('data-id', img.id);
@@ -291,13 +411,12 @@ document.addEventListener('DOMContentLoaded', () => {
       thumbnailList.appendChild(li);
     });
 
-    // Attach Remove Button Event Listeners
     const removeBtns = thumbnailList.querySelectorAll('.btn-remove-thumb');
     removeBtns.forEach(btn => {
       btn.addEventListener('click', (e) => {
         e.stopPropagation();
         const idToRemove = btn.getAttribute('data-id');
-        state.images = state.images.filter(img => img.id !== idToRemove);
+        activeSheet.images = activeSheet.images.filter(img => img.id !== idToRemove);
         renderUI();
         showToast('Gambar dihapus.', 'error');
       });
@@ -306,63 +425,23 @@ document.addEventListener('DOMContentLoaded', () => {
     initSortable();
   }
 
-  // Render Multi-sheet A4 Preview Container
   function renderPreviewGrid() {
-    state.dateText = dateInput.value;
-    const headerTitleText = state.dateText.trim() || 'TANGGAL DOKUMENTASI';
     const isLandscape = state.paperSize === 'a4-landscape';
-
     aspectTag.textContent = isLandscape ? 'A4 Landscape' : 'A4 Portrait';
+
+    const totalSheets = state.sheets.length;
+    sheetsCountTag.textContent = `${totalSheets} Sheet${totalSheets > 1 ? 's' : ''}`;
 
     previewSheetsContainer.innerHTML = '';
 
-    // Empty state placeholder sheet
-    if (state.images.length === 0) {
-      sheetsCountTag.textContent = '1 Sheet';
+    state.sheets.forEach((sheet, pageIndex) => {
+      const isSelected = sheet.id === state.activeSheetId;
+      const sheetEl = document.createElement('div');
+      sheetEl.className = `a4-sheet ${isLandscape ? 'landscape' : ''} ${isSelected ? 'active-sheet-preview' : ''}`;
+      sheetEl.setAttribute('data-sheet-id', sheet.id);
 
-      const sheet = document.createElement('div');
-      sheet.className = `a4-sheet ${isLandscape ? 'landscape' : ''}`;
-      sheet.innerHTML = `
-        <header class="pdf-header">
-          <h1 class="pdf-title-date">${escapeHtml(headerTitleText)}</h1>
-          <div class="pdf-header-divider"></div>
-        </header>
-        <div class="pdf-image-grid cols-${state.gridCols}">
-          <div class="preview-placeholder-grid">
-            <div class="ph-box"><span class="ph-label">Gambar 1</span></div>
-            <div class="ph-box"><span class="ph-label">Gambar 2</span></div>
-            <div class="ph-box"><span class="ph-label">Gambar 3</span></div>
-          </div>
-        </div>
-        <footer class="pdf-page-footer">
-          <span>DOKUMENTASI FOTO</span>
-          <span>Sheet 1 dari 1</span>
-        </footer>
-      `;
-      previewSheetsContainer.appendChild(sheet);
-      return;
-    }
+      const headerTitleText = sheet.dateText.trim() || 'TANGGAL DOKUMENTASI';
 
-    // Determine chunk size per sheet
-    let perSheet = state.imagesPerSheet === 'auto' ? state.images.length : parseInt(state.imagesPerSheet, 10);
-    if (!perSheet || perSheet < 1) perSheet = state.images.length;
-
-    // Chunk images array into multiple sheets
-    const imageChunks = [];
-    for (let i = 0; i < state.images.length; i += perSheet) {
-      imageChunks.push(state.images.slice(i, i + perSheet));
-    }
-
-    const totalSheets = imageChunks.length;
-    sheetsCountTag.textContent = `${totalSheets} Sheet${totalSheets > 1 ? 's' : ''}`;
-
-    // Render each sheet container
-    imageChunks.forEach((chunk, pageIndex) => {
-      const sheet = document.createElement('div');
-      sheet.className = `a4-sheet ${isLandscape ? 'landscape' : ''}`;
-      sheet.setAttribute('data-sheet-index', pageIndex + 1);
-
-      // Sheet Header
       let sheetHtml = `
         <span class="sheet-meta-badge">Sheet ${pageIndex + 1} / ${totalSheets}</span>
         <header class="pdf-header">
@@ -372,15 +451,23 @@ document.addEventListener('DOMContentLoaded', () => {
         <div class="pdf-image-grid cols-${state.gridCols}">
       `;
 
-      // Sheet Image Cards
-      chunk.forEach((img, idx) => {
-        const globalIdx = pageIndex * perSheet + idx + 1;
+      if (sheet.images.length === 0) {
         sheetHtml += `
-          <div class="pdf-img-card">
-            <img src="${img.dataUrl}" alt="Gambar ${globalIdx}">
+          <div class="preview-placeholder-grid">
+            <div class="ph-box"><span class="ph-label">Gambar 1</span></div>
+            <div class="ph-box"><span class="ph-label">Gambar 2</span></div>
+            <div class="ph-box"><span class="ph-label">Gambar 3</span></div>
           </div>
         `;
-      });
+      } else {
+        sheet.images.forEach((img, idx) => {
+          sheetHtml += `
+            <div class="pdf-img-card">
+              <img src="${img.dataUrl}" alt="Gambar ${idx + 1}">
+            </div>
+          `;
+        });
+      }
 
       sheetHtml += `
         </div>
@@ -390,34 +477,63 @@ document.addEventListener('DOMContentLoaded', () => {
         </footer>
       `;
 
-      sheet.innerHTML = sheetHtml;
-      previewSheetsContainer.appendChild(sheet);
+      sheetEl.innerHTML = sheetHtml;
+
+      // Click preview sheet to activate it
+      sheetEl.addEventListener('click', () => {
+        if (state.activeSheetId !== sheet.id) {
+          state.activeSheetId = sheet.id;
+          renderUI();
+        }
+      });
+
+      previewSheetsContainer.appendChild(sheetEl);
     });
   }
 
   // ==========================================
-  // 7. Controls & Event Listeners
+  // 8. Event Listeners & Actions
   // ==========================================
+  addSheetBtnHeader.addEventListener('click', addNewSheet);
+
   dateInput.addEventListener('input', () => {
-    renderPreviewGrid();
+    const activeSheet = getActiveSheet();
+    if (activeSheet) {
+      activeSheet.dateText = dateInput.value;
+      renderSheetTabs();
+      renderPreviewGrid();
+    }
   });
 
   todayPresetBtn.addEventListener('click', () => {
-    dateInput.value = getIndonesianDateString();
-    renderPreviewGrid();
-    showToast('Tanggal diubah ke hari ini.');
+    const activeSheet = getActiveSheet();
+    if (activeSheet) {
+      dateInput.value = getIndonesianDateString();
+      activeSheet.dateText = dateInput.value;
+      renderSheetTabs();
+      renderPreviewGrid();
+      showToast('Tanggal diubah ke hari ini.');
+    }
   });
 
   uppercaseBtn.addEventListener('click', () => {
-    dateInput.value = dateInput.value.toUpperCase();
-    renderPreviewGrid();
+    const activeSheet = getActiveSheet();
+    if (activeSheet) {
+      dateInput.value = dateInput.value.toUpperCase();
+      activeSheet.dateText = dateInput.value;
+      renderSheetTabs();
+      renderPreviewGrid();
+    }
   });
 
+  applyAllDatesBtn.addEventListener('click', applyDateToAllSheets);
+
   clearAllBtn.addEventListener('click', () => {
-    if (confirm('Apakah Anda yakin ingin menghapus semua gambar?')) {
-      state.images = [];
+    const activeSheet = getActiveSheet();
+    if (activeSheet && confirm('Apakah Anda yakin ingin menghapus semua gambar di Kertas ini?')) {
+      activeSheet.images = [];
       renderUI();
-      showToast('Semua gambar dihapus.', 'error');
+      showToast('Semua gambar di Kertas ini dihapus.', 'error');
     }
   });
 
@@ -431,21 +547,16 @@ document.addEventListener('DOMContentLoaded', () => {
     renderPreviewGrid();
   });
 
-  imagesPerSheetSelect.addEventListener('change', (e) => {
-    state.imagesPerSheet = e.target.value === 'auto' ? 'auto' : parseInt(e.target.value, 10);
-    renderPreviewGrid();
-  });
-
   // ==========================================
-  // 8. Generate & Download PDF (Multi-Sheet Support)
+  // 9. Generate & Download PDF
   // ==========================================
   async function generatePDF() {
-    if (state.images.length === 0) {
+    const totalImages = state.sheets.reduce((acc, s) => acc + s.images.length, 0);
+    if (totalImages === 0) {
       showToast('Upload minimal 1 gambar terlebih dahulu!', 'error');
       return;
     }
 
-    // Set Loading State
     const btnText = generatePdfBtn.querySelector('.btn-text');
     const btnLoader = generatePdfBtn.querySelector('.btn-loader');
     generatePdfBtn.disabled = true;
@@ -465,7 +576,6 @@ document.addEventListener('DOMContentLoaded', () => {
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
 
-      // Find all rendered sheet containers
       const sheetElements = previewSheetsContainer.querySelectorAll('.a4-sheet');
       
       for (let i = 0; i < sheetElements.length; i++) {
@@ -475,7 +585,6 @@ document.addEventListener('DOMContentLoaded', () => {
           pdf.addPage();
         }
 
-        // Render sheet DOM to Canvas at scale 2 for high DPI crisp rendering
         const canvas = await html2canvas(sheetEl, {
           scale: 2,
           useCORS: true,
@@ -487,8 +596,8 @@ document.addEventListener('DOMContentLoaded', () => {
         pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
       }
 
-      // 3. Download File
-      const dateStr = dateInput.value.trim() || 'Dokumentasi-Gambar';
+      const activeSheet = getActiveSheet();
+      const dateStr = activeSheet ? activeSheet.dateText : 'Dokumentasi-Gambar';
       const filename = `${sanitizeFilename(dateStr)}.pdf`;
       pdf.save(filename);
 
@@ -497,7 +606,6 @@ document.addEventListener('DOMContentLoaded', () => {
       console.error('Error generating PDF:', error);
       showToast('Gagal membuat PDF. Silakan coba lagi.', 'error');
     } finally {
-      // Reset Button State
       generatePdfBtn.disabled = false;
       btnText.style.display = 'flex';
       btnLoader.style.display = 'none';

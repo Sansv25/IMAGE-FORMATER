@@ -173,6 +173,135 @@ body {
   box-shadow: var(--shadow-sm);
 }
 
+.sheet-manager-section {
+  background: linear-gradient(145deg, rgba(30, 41, 59, 0.8), rgba(15, 23, 42, 0.9));
+  border-color: rgba(59, 130, 246, 0.3);
+}
+
+.section-icon {
+  color: var(--primary);
+}
+
+.btn-add-sheet-header {
+  background: var(--primary-gradient);
+  color: #ffffff;
+  border: none;
+  font-family: var(--font-heading);
+  font-size: 0.775rem;
+  font-weight: 600;
+  padding: 0.35rem 0.75rem;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 0.35rem;
+  transition: var(--transition-fast);
+  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+}
+
+.btn-add-sheet-header:hover {
+  transform: translateY(-1px);
+  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.5);
+}
+
+/* Sheet Tabs Bar */
+.sheet-tabs-container {
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+  margin-top: 0.5rem;
+}
+
+.sheet-tab-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background-color: var(--bg-input);
+  border: 1px solid var(--border-color);
+  border-radius: var(--radius-md);
+  padding: 0.6rem 0.85rem;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.sheet-tab-item:hover {
+  background-color: var(--bg-card-hover);
+  border-color: rgba(59, 130, 246, 0.4);
+}
+
+.sheet-tab-item.active {
+  background: rgba(59, 130, 246, 0.12);
+  border-color: var(--primary);
+  box-shadow: 0 0 0 1px var(--primary);
+}
+
+.sheet-tab-info {
+  display: flex;
+  align-items: center;
+  gap: 0.6rem;
+  min-width: 0;
+}
+
+.sheet-tab-badge {
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: var(--bg-dark);
+  color: var(--text-main);
+  font-family: var(--font-heading);
+  font-size: 0.75rem;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid var(--border-color);
+}
+
+.sheet-tab-item.active .sheet-tab-badge {
+  background: var(--primary);
+  color: #ffffff;
+  border-color: var(--primary);
+}
+
+.sheet-tab-text {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+}
+
+.sheet-tab-title {
+  font-size: 0.825rem;
+  font-weight: 600;
+  color: var(--text-main);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.sheet-tab-sub {
+  font-size: 0.725rem;
+  color: var(--text-muted);
+}
+
+.btn-remove-sheet {
+  background: none;
+  border: none;
+  color: var(--text-dim);
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  transition: var(--transition-fast);
+}
+
+.btn-remove-sheet:hover {
+  background: rgba(239, 68, 68, 0.15);
+  color: var(--danger);
+}
+
 .section-header {
   display: flex;
   align-items: center;

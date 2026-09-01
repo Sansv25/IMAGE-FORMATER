@@ -53,14 +53,39 @@
     <!-- Left Sidebar: Controls & Options -->
     <aside class="control-panel">
       
+      <!-- Section 0: Manajemen Kertas (Multi-Sheet Controls) -->
+      <section class="card-section sheet-manager-section">
+        <div class="section-header section-header-split">
+          <div class="section-title-wrap">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" class="section-icon">
+              <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+              <line x1="3" y1="9" x2="21" y2="9"/>
+              <line x1="9" y1="21" x2="9" y2="9"/>
+            </svg>
+            <h2>Daftar Kertas (Sheet)</h2>
+          </div>
+          <button type="button" class="btn-add-sheet-header" id="addSheetBtnHeader" title="Tambah Kertas Baru">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5">
+              <line x1="12" y1="5" x2="12" y2="19"/>
+              <line x1="5" y1="12" x2="19" y2="12"/>
+            </svg>
+            Tambah Kertas
+          </button>
+        </div>
+
+        <div class="sheet-tabs-container" id="sheetTabsContainer">
+          <!-- Dynamic Sheet Tabs rendered by JS -->
+        </div>
+      </section>
+
       <!-- Section 1: Input Tanggal -->
       <section class="card-section">
         <div class="section-header">
           <span class="step-num">1</span>
-          <h2>Judul Tanggal</h2>
+          <h2 id="activeSheetTitleLabel">Judul Tanggal Kertas 1</h2>
         </div>
         <div class="input-group">
-          <label for="dateInput">Teks Tanggal Header</label>
+          <label for="dateInput">Teks Tanggal Header (Kertas Ini)</label>
           <div class="input-wrapper">
             <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
               <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
@@ -73,6 +98,7 @@
           <div class="quick-preset-btns">
             <button type="button" class="btn-preset" id="todayPresetBtn">Tanggal Hari Ini</button>
             <button type="button" class="btn-preset" id="uppercaseBtn">Kapital</button>
+            <button type="button" class="btn-preset" id="applyAllDatesBtn" title="Samakan tanggal ini ke semua kertas">Samakan ke Semua Kertas</button>
           </div>
         </div>
       </section>
