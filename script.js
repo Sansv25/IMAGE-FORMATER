@@ -443,7 +443,6 @@ document.addEventListener('DOMContentLoaded', () => {
       const headerTitleText = sheet.dateText.trim() || 'TANGGAL DOKUMENTASI';
 
       let sheetHtml = `
-        <span class="sheet-meta-badge">Sheet ${pageIndex + 1} / ${totalSheets}</span>
         <header class="pdf-header">
           <h1 class="pdf-title-date">${escapeHtml(headerTitleText)}</h1>
           <div class="pdf-header-divider"></div>
@@ -471,10 +470,6 @@ document.addEventListener('DOMContentLoaded', () => {
 
       sheetHtml += `
         </div>
-        <footer class="pdf-page-footer">
-          <span>DOKUMENTASI FOTO — ${escapeHtml(headerTitleText)}</span>
-          <span>Halaman ${pageIndex + 1} dari ${totalSheets}</span>
-        </footer>
       `;
 
       sheetEl.innerHTML = sheetHtml;
