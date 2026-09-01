@@ -1,7 +1,7 @@
 /**
  * PDF Image Formatter — Core Application Logic
  * Native HTML/CSS/Vanilla JS (100% Client-Side)
- * Features: LocalStorage Autosave Persistence & Popup Preview Modal
+ * Features: Offscreen PDF Render Engine (Fix Blank White Page Issue) & LocalStorage Autosave
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -59,6 +59,8 @@ document.addEventListener('DOMContentLoaded', () => {
   const previewModal = document.getElementById('previewModal');
 
   const previewSheetsContainer = document.getElementById('previewSheetsContainer');
+  const pdfExportContainer = document.getElementById('pdfExportContainer');
+
   const sheetsCountTag = document.getElementById('sheetsCountTag');
   const aspectTag = document.getElementById('aspectTag');
   const toastContainer = document.getElementById('toastContainer');
@@ -91,7 +93,6 @@ document.addEventListener('DOMContentLoaded', () => {
           state.gridCols = parsed.gridCols || 3;
           state.paperSize = parsed.paperSize || 'a4-landscape';
           
-          // Sync select controls
           gridColsSelect.value = String(state.gridCols);
           paperSizeSelect.value = state.paperSize;
 
@@ -413,7 +414,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // ==========================================
-  // 9. UI Render Functions
+  // 9. UI Render & Offscreen PDF Export Engine
   // ==========================================
   function renderUI() {
     renderSheetTabs();
@@ -530,6 +531,7 @@ document.addEventListener('DOMContentLoaded', () => {
     initSortable();
   }
 
+  // Render Modal Preview Workspace
   function renderPreviewGrid() {
     const isLandscape = state.paperSize === 'a4-landscape';
     aspectTag.textContent = isLandscape ? 'A4 Landscape' : 'A4 Portrait';
@@ -591,6 +593,57 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   }
 
+  // Render Offscreen Export Container (100% Reliable HTML2Canvas Capture)
+  async function prepareOffscreenExportContainer() {
+    const isLandscape = state.paperSize === 'a4-landscape';
+    pdfExportContainer.innerHTML = '';
+
+    const promises = [];
+
+    state.sheets.forEach((sheet) => {
+      const sheetEl = document.createElement('div');
+      sheetEl.className = `a4-sheet ${isLandscape ? 'landscape' : ''}`;
+      
+      const headerTitleText = sheet.dateText.trim() || 'TANGGAL DOKUMENTASI';
+
+      let sheetHtml = `
+        <header class="pdf-header">
+          <h1 class="pdf-title-date">${escapeHtml(headerTitleText)}</h1>
+          <div class="pdf-header-divider"></div>
+        </header>
+        <div class="pdf-image-grid cols-${state.gridCols}">
+      `;
+
+      sheet.images.forEach((img, idx) => {
+        sheetHtml += `
+          <div class="pdf-img-card">
+            <img src="${img.dataUrl}" alt="Gambar ${idx + 1}">
+          </div>
+        `;
+      });
+
+      sheetHtml += `</div>`;
+      sheetEl.innerHTML = sheetHtml;
+
+      // Ensure all images are fully loaded before html2canvas capture
+      const imgs = sheetEl.querySelectorAll('img');
+      imgs.forEach(img => {
+        if (!img.complete) {
+          promises.push(new Promise(resolve => {
+            img.onload = resolve;
+            img.onerror = resolve;
+          }));
+        }
+      });
+
+      pdfExportContainer.appendChild(sheetEl);
+    });
+
+    await Promise.all(promises);
+    // Extra frame delay for layout calculation
+    await new Promise(r => setTimeout(r, 100));
+  }
+
   // ==========================================
   // 10. Event Listeners & Actions
   // ==========================================
@@ -649,7 +702,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // ==========================================
-  // 11. Generate & Download PDF
+  // 11. Generate & Download PDF (Offscreen Render Engine)
   // ==========================================
   async function generatePDF() {
     const totalImages = state.sheets.reduce((acc, s) => acc + s.images.length, 0);
@@ -657,9 +710,6 @@ document.addEventListener('DOMContentLoaded', () => {
       showToast('Upload minimal 1 gambar terlebih dahulu!', 'error');
       return;
     }
-
-    // Always ensure preview is rendered before generating PDF
-    renderPreviewGrid();
 
     const targets = [generatePdfBtn, modalGeneratePdfBtn];
     targets.forEach(btn => {
@@ -673,6 +723,9 @@ document.addEventListener('DOMContentLoaded', () => {
     });
 
     try {
+      // 1. Prepare Offscreen Container (Always Visible to DOM, Far Offscreen)
+      await prepareOffscreenExportContainer();
+
       const { jsPDF } = window.jspdf;
       const isLandscape = state.paperSize === 'a4-landscape';
       
@@ -685,7 +738,8 @@ document.addEventListener('DOMContentLoaded', () => {
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
 
-      const sheetElements = previewSheetsContainer.querySelectorAll('.a4-sheet');
+      // 2. Query sheet elements from Offscreen Export Container
+      const sheetElements = pdfExportContainer.querySelectorAll('.a4-sheet');
       
       for (let i = 0; i < sheetElements.length; i++) {
         const sheetEl = sheetElements[i];
@@ -694,6 +748,7 @@ document.addEventListener('DOMContentLoaded', () => {
           pdf.addPage();
         }
 
+        // Capture offscreen element cleanly
         const canvas = await html2canvas(sheetEl, {
           scale: 2,
           useCORS: true,
@@ -705,6 +760,7 @@ document.addEventListener('DOMContentLoaded', () => {
         pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
       }
 
+      // 3. Download File
       const activeSheet = getActiveSheet();
       const dateStr = activeSheet ? activeSheet.dateText : 'Dokumentasi-Gambar';
       const filename = `${sanitizeFilename(dateStr)}.pdf`;
@@ -716,6 +772,7 @@ document.addEventListener('DOMContentLoaded', () => {
       console.error('Error generating PDF:', error);
       showToast('Gagal membuat PDF. Silakan coba lagi.', 'error');
     } finally {
+      pdfExportContainer.innerHTML = '';
       targets.forEach(btn => {
         if (btn) {
           btn.disabled = false;
