@@ -1,0 +1,232 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Generator PDF Dokumentasi Gambar & Tanggal</title>
+  <meta name="description" content="Aplikasi web instan untuk membuat dokumen PDF dengan header tanggal dan susunan gambar yang fleksibel. 100% Client-Side.">
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- External Libraries via CDN -->
+  <!-- SortableJS for Drag & Drop Reordering -->
+  <script src="https://cdn.jsdelivr.net/npm/sortablejs@1.15.2/Sortable.min.js"></script>
+  <!-- html2canvas for canvas rendering -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+  <!-- jsPDF for PDF generation -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+  
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+
+  <!-- Top App Navbar -->
+  <header class="app-header">
+    <div class="header-container">
+      <div class="brand">
+        <div class="brand-icon">
+          <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round">
+            <path d="M14.5 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7.5L14.5 2z"/>
+            <polyline points="14 2 14 8 20 8"/>
+            <rect x="8" y="12" width="8" height="6" rx="1"/>
+            <circle cx="10.5" cy="14.5" r="0.75"/>
+          </svg>
+        </div>
+        <div>
+          <h1 class="app-title">PDF Image Formatter</h1>
+          <p class="app-subtitle">Generator Dokumentasi Gambar + Tanggal</p>
+        </div>
+      </div>
+      <div class="header-badge">
+        <span class="pulse-dot"></span> 100% Client-Side & Secure
+      </div>
+    </div>
+  </header>
+
+  <!-- Main Workspace -->
+  <main class="workspace-container">
+    
+    <!-- Left Sidebar: Controls & Options -->
+    <aside class="control-panel">
+      
+      <!-- Section 1: Input Tanggal -->
+      <section class="card-section">
+        <div class="section-header">
+          <span class="step-num">1</span>
+          <h2>Judul Tanggal</h2>
+        </div>
+        <div class="input-group">
+          <label for="dateInput">Teks Tanggal Header</label>
+          <div class="input-wrapper">
+            <svg class="input-icon" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+              <rect x="3" y="4" width="18" height="18" rx="2" ry="2"/>
+              <line x1="16" y1="2" x2="16" y2="6"/>
+              <line x1="8" y1="2" x2="8" y2="6"/>
+              <line x1="3" y1="10" x2="21" y2="10"/>
+            </svg>
+            <input type="text" id="dateInput" placeholder="Contoh: 1 AGUSTUS 2026" autocomplete="off">
+          </div>
+          <div class="quick-preset-btns">
+            <button type="button" class="btn-preset" id="todayPresetBtn">Tanggal Hari Ini</button>
+            <button type="button" class="btn-preset" id="uppercaseBtn">Kapital</button>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 2: Upload Gambar -->
+      <section class="card-section">
+        <div class="section-header">
+          <span class="step-num">2</span>
+          <h2>Upload Gambar</h2>
+        </div>
+        
+        <div class="upload-zone" id="dropZone">
+          <input type="file" id="fileInput" multiple accept="image/jpeg,image/png,image/webp" class="file-input-hidden">
+          <div class="upload-zone-content">
+            <div class="upload-icon">
+              <svg width="32" height="32" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+                <polyline points="17 8 12 3 7 8"/>
+                <line x1="12" y1="3" x2="12" y2="15"/>
+              </svg>
+            </div>
+            <p class="upload-title">Tarik & lepaskan gambar di sini</p>
+            <p class="upload-subtitle">atau klik untuk memilih file dari komputer</p>
+            <span class="file-types-badge">JPG, PNG, WEBP</span>
+          </div>
+        </div>
+      </section>
+
+      <!-- Section 3: Urutan Gambar (Reorder) -->
+      <section class="card-section">
+        <div class="section-header section-header-split">
+          <div class="section-title-wrap">
+            <span class="step-num">3</span>
+            <h2>Urutan Gambar</h2>
+          </div>
+          <div class="badge-count" id="imageCount">0 Gambar</div>
+        </div>
+        <p class="section-hint">Geser / drag thumbnail untuk mengubah urutan posisi di PDF.</p>
+
+        <ul class="thumbnail-list" id="thumbnailList">
+          <!-- Thumbnail items inserted dynamically by JS -->
+        </ul>
+
+        <div class="empty-state" id="emptyState">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"/>
+            <circle cx="8.5" cy="8.5" r="1.5"/>
+            <polyline points="21 15 16 10 5 21"/>
+          </svg>
+          <p>Belum ada gambar diupload</p>
+        </div>
+
+        <button type="button" class="btn-secondary btn-full" id="clearAllBtn" style="display: none;">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <polyline points="3 6 5 6 21 6"/>
+            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+          </svg>
+          Hapus Semua Gambar
+        </button>
+      </section>
+
+      <!-- Section 4: Pengaturan Output & Export -->
+      <section class="card-section">
+        <div class="section-header">
+          <span class="step-num">4</span>
+          <h2>Pengaturan Layout PDF</h2>
+        </div>
+
+        <div class="settings-grid">
+          <div class="setting-item">
+            <label for="gridColsSelect">Kolom Gambar Per Baris</label>
+            <select id="gridColsSelect">
+              <option value="2">2 Kolom</option>
+              <option value="3" selected>3 Kolom (Default)</option>
+              <option value="4">4 Kolom</option>
+            </select>
+          </div>
+
+          <div class="setting-item">
+            <label for="paperSizeSelect">Ukuran Kertas</label>
+            <select id="paperSizeSelect">
+              <option value="a4" selected>A4 Portrait</option>
+              <option value="a4-landscape">A4 Landscape</option>
+            </select>
+          </div>
+        </div>
+
+        <button type="button" class="btn-primary btn-full generate-btn" id="generatePdfBtn">
+          <span class="btn-text">
+            <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2">
+              <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+              <polyline points="7 10 12 15 17 10"/>
+              <line x1="12" y1="15" x2="12" y2="3"/>
+            </svg>
+            Generate & Download PDF
+          </span>
+          <span class="btn-loader" style="display: none;">
+            <span class="spinner"></span> Memproses PDF...
+          </span>
+        </button>
+      </section>
+
+    </aside>
+
+    <!-- Right Area: Real-Time Live Preview -->
+    <section class="preview-panel">
+      <div class="preview-toolbar">
+        <div class="toolbar-title">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z"/>
+            <circle cx="12" cy="12" r="3"/>
+          </svg>
+          <span>Live Preview Hasil PDF</span>
+        </div>
+        <div class="toolbar-actions">
+          <span class="preview-aspect-tag" id="aspectTag">A4 Portrait</span>
+        </div>
+      </div>
+
+      <!-- Scrollable Preview Workspace -->
+      <div class="preview-workspace">
+        <div class="a4-container">
+          
+          <!-- Target sheet for html2canvas -->
+          <div class="a4-sheet" id="pdfPreviewSheet">
+            
+            <!-- PDF Header Tanggal -->
+            <header class="pdf-header">
+              <h1 class="pdf-title-date" id="previewDateHeader">1 AGUSTUS 2026</h1>
+              <div class="pdf-header-divider"></div>
+            </header>
+
+            <!-- PDF Dynamic Image Grid -->
+            <div class="pdf-image-grid cols-3" id="previewImageGrid">
+              <!-- Placeholder helper if empty -->
+              <div class="preview-placeholder-grid">
+                <div class="ph-box"><span class="ph-label">Gambar 1</span></div>
+                <div class="ph-box"><span class="ph-label">Gambar 2</span></div>
+                <div class="ph-box"><span class="ph-label">Gambar 3</span></div>
+              </div>
+            </div>
+
+          </div>
+
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <!-- Notification Toast Container -->
+  <div class="toast-container" id="toastContainer"></div>
+
+  <!-- Custom JavaScript -->
+  <script src="script.js"></script>
+</body>
+</html>
