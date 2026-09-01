@@ -1,6 +1,7 @@
 /**
  * PDF Image Formatter — Core Application Logic
  * Native HTML/CSS/Vanilla JS (100% Client-Side)
+ * Supports Multi-Sheet Pagination & Horizontal (Landscape) Layout
  */
 
 document.addEventListener('DOMContentLoaded', () => {
@@ -11,7 +12,8 @@ document.addEventListener('DOMContentLoaded', () => {
     dateText: '1 AGUSTUS 2026',
     images: [], // Array of { id, name, sizeFormatted, dataUrl }
     gridCols: 3,
-    paperSize: 'a4' // 'a4' or 'a4-landscape'
+    paperSize: 'a4-landscape', // Default Horizontal
+    imagesPerSheet: 6 // Default 6 images per sheet
   };
 
   // SortableJS Instance
@@ -34,11 +36,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const gridColsSelect = document.getElementById('gridColsSelect');
   const paperSizeSelect = document.getElementById('paperSizeSelect');
+  const imagesPerSheetSelect = document.getElementById('imagesPerSheetSelect');
   const generatePdfBtn = document.getElementById('generatePdfBtn');
 
-  const previewDateHeader = document.getElementById('previewDateHeader');
-  const previewImageGrid = document.getElementById('previewImageGrid');
-  const pdfPreviewSheet = document.getElementById('pdfPreviewSheet');
+  const previewSheetsContainer = document.getElementById('previewSheetsContainer');
+  const sheetsCountTag = document.getElementById('sheetsCountTag');
   const aspectTag = document.getElementById('aspectTag');
   const toastContainer = document.getElementById('toastContainer');
 
@@ -233,7 +235,7 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         state.images = newImagesArray;
-        renderPreviewGrid(); // Update preview sheet without rebuilding list
+        renderPreviewGrid(); // Update preview sheets without rebuilding list
       }
     });
   }
@@ -244,12 +246,6 @@ document.addEventListener('DOMContentLoaded', () => {
   function renderUI() {
     renderThumbnailList();
     renderPreviewGrid();
-    renderHeaderDate();
-  }
-
-  function renderHeaderDate() {
-    state.dateText = dateInput.value;
-    previewDateHeader.textContent = state.dateText.trim() || 'TANGGAL DOKUMENTASI';
   }
 
   function renderThumbnailList() {
@@ -310,26 +306,92 @@ document.addEventListener('DOMContentLoaded', () => {
     initSortable();
   }
 
+  // Render Multi-sheet A4 Preview Container
   function renderPreviewGrid() {
-    previewImageGrid.className = `pdf-image-grid cols-${state.gridCols}`;
-    previewImageGrid.innerHTML = '';
+    state.dateText = dateInput.value;
+    const headerTitleText = state.dateText.trim() || 'TANGGAL DOKUMENTASI';
+    const isLandscape = state.paperSize === 'a4-landscape';
 
+    aspectTag.textContent = isLandscape ? 'A4 Landscape' : 'A4 Portrait';
+
+    previewSheetsContainer.innerHTML = '';
+
+    // Empty state placeholder sheet
     if (state.images.length === 0) {
-      previewImageGrid.innerHTML = `
-        <div class="preview-placeholder-grid">
-          <div class="ph-box"><span class="ph-label">Gambar 1</span></div>
-          <div class="ph-box"><span class="ph-label">Gambar 2</span></div>
-          <div class="ph-box"><span class="ph-label">Gambar 3</span></div>
+      sheetsCountTag.textContent = '1 Sheet';
+
+      const sheet = document.createElement('div');
+      sheet.className = `a4-sheet ${isLandscape ? 'landscape' : ''}`;
+      sheet.innerHTML = `
+        <header class="pdf-header">
+          <h1 class="pdf-title-date">${escapeHtml(headerTitleText)}</h1>
+          <div class="pdf-header-divider"></div>
+        </header>
+        <div class="pdf-image-grid cols-${state.gridCols}">
+          <div class="preview-placeholder-grid">
+            <div class="ph-box"><span class="ph-label">Gambar 1</span></div>
+            <div class="ph-box"><span class="ph-label">Gambar 2</span></div>
+            <div class="ph-box"><span class="ph-label">Gambar 3</span></div>
+          </div>
         </div>
+        <footer class="pdf-page-footer">
+          <span>DOKUMENTASI FOTO</span>
+          <span>Sheet 1 dari 1</span>
+        </footer>
       `;
+      previewSheetsContainer.appendChild(sheet);
       return;
     }
 
-    state.images.forEach((img, idx) => {
-      const card = document.createElement('div');
-      card.className = 'pdf-img-card';
-      card.innerHTML = `<img src="${img.dataUrl}" alt="Gambar ${idx + 1}">`;
-      previewImageGrid.appendChild(card);
+    // Determine chunk size per sheet
+    let perSheet = state.imagesPerSheet === 'auto' ? state.images.length : parseInt(state.imagesPerSheet, 10);
+    if (!perSheet || perSheet < 1) perSheet = state.images.length;
+
+    // Chunk images array into multiple sheets
+    const imageChunks = [];
+    for (let i = 0; i < state.images.length; i += perSheet) {
+      imageChunks.push(state.images.slice(i, i + perSheet));
+    }
+
+    const totalSheets = imageChunks.length;
+    sheetsCountTag.textContent = `${totalSheets} Sheet${totalSheets > 1 ? 's' : ''}`;
+
+    // Render each sheet container
+    imageChunks.forEach((chunk, pageIndex) => {
+      const sheet = document.createElement('div');
+      sheet.className = `a4-sheet ${isLandscape ? 'landscape' : ''}`;
+      sheet.setAttribute('data-sheet-index', pageIndex + 1);
+
+      // Sheet Header
+      let sheetHtml = `
+        <span class="sheet-meta-badge">Sheet ${pageIndex + 1} / ${totalSheets}</span>
+        <header class="pdf-header">
+          <h1 class="pdf-title-date">${escapeHtml(headerTitleText)}</h1>
+          <div class="pdf-header-divider"></div>
+        </header>
+        <div class="pdf-image-grid cols-${state.gridCols}">
+      `;
+
+      // Sheet Image Cards
+      chunk.forEach((img, idx) => {
+        const globalIdx = pageIndex * perSheet + idx + 1;
+        sheetHtml += `
+          <div class="pdf-img-card">
+            <img src="${img.dataUrl}" alt="Gambar ${globalIdx}">
+          </div>
+        `;
+      });
+
+      sheetHtml += `
+        </div>
+        <footer class="pdf-page-footer">
+          <span>DOKUMENTASI FOTO — ${escapeHtml(headerTitleText)}</span>
+          <span>Halaman ${pageIndex + 1} dari ${totalSheets}</span>
+        </footer>
+      `;
+
+      sheet.innerHTML = sheetHtml;
+      previewSheetsContainer.appendChild(sheet);
     });
   }
 
@@ -337,18 +399,18 @@ document.addEventListener('DOMContentLoaded', () => {
   // 7. Controls & Event Listeners
   // ==========================================
   dateInput.addEventListener('input', () => {
-    renderHeaderDate();
+    renderPreviewGrid();
   });
 
   todayPresetBtn.addEventListener('click', () => {
     dateInput.value = getIndonesianDateString();
-    renderHeaderDate();
+    renderPreviewGrid();
     showToast('Tanggal diubah ke hari ini.');
   });
 
   uppercaseBtn.addEventListener('click', () => {
     dateInput.value = dateInput.value.toUpperCase();
-    renderHeaderDate();
+    renderPreviewGrid();
   });
 
   clearAllBtn.addEventListener('click', () => {
@@ -366,17 +428,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
   paperSizeSelect.addEventListener('change', (e) => {
     state.paperSize = e.target.value;
-    if (state.paperSize === 'a4-landscape') {
-      pdfPreviewSheet.classList.add('landscape');
-      aspectTag.textContent = 'A4 Landscape';
-    } else {
-      pdfPreviewSheet.classList.remove('landscape');
-      aspectTag.textContent = 'A4 Portrait';
-    }
+    renderPreviewGrid();
+  });
+
+  imagesPerSheetSelect.addEventListener('change', (e) => {
+    state.imagesPerSheet = e.target.value === 'auto' ? 'auto' : parseInt(e.target.value, 10);
+    renderPreviewGrid();
   });
 
   // ==========================================
-  // 8. Generate & Download PDF
+  // 8. Generate & Download PDF (Multi-Sheet Support)
   // ==========================================
   async function generatePDF() {
     if (state.images.length === 0) {
@@ -392,17 +453,9 @@ document.addEventListener('DOMContentLoaded', () => {
     btnLoader.style.display = 'flex';
 
     try {
-      // 1. Capture target element via html2canvas
-      const canvas = await html2canvas(pdfPreviewSheet, {
-        scale: 2, // High DPI rendering
-        useCORS: true,
-        logging: false,
-        backgroundColor: '#ffffff'
-      });
-
-      // 2. Initialize jsPDF
       const { jsPDF } = window.jspdf;
       const isLandscape = state.paperSize === 'a4-landscape';
+      
       const pdf = new jsPDF({
         orientation: isLandscape ? 'landscape' : 'portrait',
         unit: 'mm',
@@ -412,24 +465,26 @@ document.addEventListener('DOMContentLoaded', () => {
       const pdfWidth = pdf.internal.pageSize.getWidth();
       const pdfHeight = pdf.internal.pageSize.getHeight();
 
-      // Convert canvas to image
-      const imgData = canvas.toDataURL('image/jpeg', 0.95);
-      const imgWidth = pdfWidth;
-      const imgHeight = (canvas.height * pdfWidth) / canvas.width;
+      // Find all rendered sheet containers
+      const sheetElements = previewSheetsContainer.querySelectorAll('.a4-sheet');
+      
+      for (let i = 0; i < sheetElements.length; i++) {
+        const sheetEl = sheetElements[i];
 
-      let heightLeft = imgHeight;
-      let position = 0;
+        if (i > 0) {
+          pdf.addPage();
+        }
 
-      // First Page
-      pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
-      heightLeft -= pdfHeight;
+        // Render sheet DOM to Canvas at scale 2 for high DPI crisp rendering
+        const canvas = await html2canvas(sheetEl, {
+          scale: 2,
+          useCORS: true,
+          logging: false,
+          backgroundColor: '#ffffff'
+        });
 
-      // Handle multi-page if content spills over height
-      while (heightLeft > 0) {
-        position = heightLeft - imgHeight;
-        pdf.addPage();
-        pdf.addImage(imgData, 'JPEG', 0, position, imgWidth, imgHeight);
-        heightLeft -= pdfHeight;
+        const imgData = canvas.toDataURL('image/jpeg', 0.95);
+        pdf.addImage(imgData, 'JPEG', 0, 0, pdfWidth, pdfHeight);
       }
 
       // 3. Download File
@@ -437,7 +492,7 @@ document.addEventListener('DOMContentLoaded', () => {
       const filename = `${sanitizeFilename(dateStr)}.pdf`;
       pdf.save(filename);
 
-      showToast(`PDF ${filename} berhasil dibuat & didownload!`);
+      showToast(`PDF ${filename} (${sheetElements.length} sheet) berhasil dibuat & didownload!`);
     } catch (error) {
       console.error('Error generating PDF:', error);
       showToast('Gagal membuat PDF. Silakan coba lagi.', 'error');

@@ -638,6 +638,16 @@ body {
   color: var(--primary);
 }
 
+.sheets-count-tag {
+  font-size: 0.75rem;
+  font-weight: 600;
+  color: var(--accent-teal);
+  background: rgba(20, 184, 166, 0.1);
+  border: 1px solid rgba(20, 184, 166, 0.25);
+  padding: 0.25rem 0.6rem;
+  border-radius: 4px;
+}
+
 .preview-aspect-tag {
   font-size: 0.75rem;
   font-weight: 600;
@@ -662,15 +672,19 @@ body {
 }
 
 .a4-container {
-  perspective: 1000px;
+  display: flex;
+  flex-direction: column;
+  gap: 40px;
+  align-items: center;
+  width: 100%;
 }
 
 /* Modern Clean A4 Sheet Container */
 .a4-sheet {
   background-color: #ffffff;
   color: #1e293b;
-  width: 794px; /* ~210mm at 96dpi */
-  min-height: 1123px; /* ~297mm at 96dpi */
+  width: 794px; /* Portrait ~210mm at 96dpi */
+  min-height: 1123px; /* Portrait ~297mm at 96dpi */
   padding: 45px 50px;
   box-shadow: var(--shadow-paper);
   border-radius: 2px;
@@ -682,19 +696,31 @@ body {
 }
 
 .a4-sheet.landscape {
-  width: 1123px;
-  min-height: 794px;
+  width: 1050px; /* Landscape ~297mm */
+  min-height: 740px; /* Landscape ~210mm */
+  padding: 40px 45px;
 }
 
-/* PDF Header inside preview sheet */
+/* Sheet Header & Footer */
+.sheet-meta-badge {
+  position: absolute;
+  top: 12px;
+  right: 18px;
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  color: #94a3b8;
+  text-transform: uppercase;
+}
+
 .pdf-header {
   text-align: center;
-  margin-bottom: 30px;
+  margin-bottom: 25px;
 }
 
 .pdf-title-date {
   font-family: var(--font-heading);
-  font-size: 32px;
+  font-size: 30px;
   font-weight: 800;
   color: #0f172a;
   letter-spacing: 0.04em;
@@ -707,15 +733,16 @@ body {
   width: 80px;
   height: 4px;
   background-color: #0f172a;
-  margin: 12px auto 0 auto;
+  margin: 10px auto 0 auto;
   border-radius: 2px;
 }
 
 /* Dynamic Image Grid inside PDF */
 .pdf-image-grid {
   display: grid;
-  gap: 20px;
+  gap: 18px;
   width: 100%;
+  flex: 1;
 }
 
 .pdf-image-grid.cols-2 {
@@ -745,10 +772,27 @@ body {
 
 .pdf-img-card img {
   width: 100%;
-  height: 200px;
+  height: 220px;
   object-fit: contain;
   border-radius: 4px;
   background-color: #f8fafc;
+}
+
+.a4-sheet:not(.landscape) .pdf-img-card img {
+  height: 240px;
+}
+
+/* Page Footer Indicator inside PDF sheet */
+.pdf-page-footer {
+  margin-top: auto;
+  padding-top: 15px;
+  border-top: 1px solid #f1f5f9;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 11px;
+  color: #94a3b8;
+  font-weight: 500;
 }
 
 /* Placeholder state when no images uploaded */

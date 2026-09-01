@@ -143,19 +143,30 @@
 
         <div class="settings-grid">
           <div class="setting-item">
-            <label for="gridColsSelect">Kolom Gambar Per Baris</label>
-            <select id="gridColsSelect">
-              <option value="2">2 Kolom</option>
-              <option value="3" selected>3 Kolom (Default)</option>
-              <option value="4">4 Kolom</option>
+            <label for="paperSizeSelect">Orientasi Kertas</label>
+            <select id="paperSizeSelect">
+              <option value="a4-landscape" selected>A4 Landscape (Horizontal)</option>
+              <option value="a4">A4 Portrait (Vertikal)</option>
             </select>
           </div>
 
           <div class="setting-item">
-            <label for="paperSizeSelect">Ukuran Kertas</label>
-            <select id="paperSizeSelect">
-              <option value="a4" selected>A4 Portrait</option>
-              <option value="a4-landscape">A4 Landscape</option>
+            <label for="imagesPerSheetSelect">Max Gambar Per Sheet</label>
+            <select id="imagesPerSheetSelect">
+              <option value="3">3 Gambar / Sheet</option>
+              <option value="6" selected>6 Gambar / Sheet (Default)</option>
+              <option value="9">9 Gambar / Sheet</option>
+              <option value="12">12 Gambar / Sheet</option>
+              <option value="auto">Otomatis / Tanpa Batas</option>
+            </select>
+          </div>
+
+          <div class="setting-item" style="grid-column: span 2;">
+            <label for="gridColsSelect">Kolom Gambar Per Baris</label>
+            <select id="gridColsSelect">
+              <option value="2">2 Kolom</option>
+              <option value="3" selected>3 Kolom (Default Landscape)</option>
+              <option value="4">4 Kolom</option>
             </select>
           </div>
         </div>
@@ -188,35 +199,15 @@
           <span>Live Preview Hasil PDF</span>
         </div>
         <div class="toolbar-actions">
-          <span class="preview-aspect-tag" id="aspectTag">A4 Portrait</span>
+          <span class="sheets-count-tag" id="sheetsCountTag">1 Sheet</span>
+          <span class="preview-aspect-tag" id="aspectTag">A4 Landscape</span>
         </div>
       </div>
 
       <!-- Scrollable Preview Workspace -->
       <div class="preview-workspace">
-        <div class="a4-container">
-          
-          <!-- Target sheet for html2canvas -->
-          <div class="a4-sheet" id="pdfPreviewSheet">
-            
-            <!-- PDF Header Tanggal -->
-            <header class="pdf-header">
-              <h1 class="pdf-title-date" id="previewDateHeader">1 AGUSTUS 2026</h1>
-              <div class="pdf-header-divider"></div>
-            </header>
-
-            <!-- PDF Dynamic Image Grid -->
-            <div class="pdf-image-grid cols-3" id="previewImageGrid">
-              <!-- Placeholder helper if empty -->
-              <div class="preview-placeholder-grid">
-                <div class="ph-box"><span class="ph-label">Gambar 1</span></div>
-                <div class="ph-box"><span class="ph-label">Gambar 2</span></div>
-                <div class="ph-box"><span class="ph-label">Gambar 3</span></div>
-              </div>
-            </div>
-
-          </div>
-
+        <div class="a4-container" id="previewSheetsContainer">
+          <!-- Dynamic A4 sheets rendered by JS -->
         </div>
       </div>
     </section>
