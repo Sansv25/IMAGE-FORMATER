@@ -1,14 +1,16 @@
 /**
  * PDF Image Formatter — Core Application Logic
  * Native HTML/CSS/Vanilla JS (100% Client-Side)
- * Feature: Manual Multi-Sheet Management (Tambah Kertas Baru)
+ * Features: LocalStorage Autosave Persistence & Popup Preview Modal
  */
 
 document.addEventListener('DOMContentLoaded', () => {
+  const LOCAL_STORAGE_KEY = 'pdf_image_formatter_v1_state';
+
   // ==========================================
   // 1. Application State
   // ==========================================
-  const state = {
+  let state = {
     activeSheetId: 'sheet_1',
     sheets: [
       {
@@ -27,6 +29,7 @@ document.addEventListener('DOMContentLoaded', () => {
   // ==========================================
   // 2. DOM Elements
   // ==========================================
+  const resetDraftBtn = document.getElementById('resetDraftBtn');
   const addSheetBtnHeader = document.getElementById('addSheetBtnHeader');
   const sheetTabsContainer = document.getElementById('sheetTabsContainer');
   const activeSheetTitleLabel = document.getElementById('activeSheetTitleLabel');
@@ -48,13 +51,82 @@ document.addEventListener('DOMContentLoaded', () => {
   const paperSizeSelect = document.getElementById('paperSizeSelect');
   const generatePdfBtn = document.getElementById('generatePdfBtn');
 
+  // Preview Modal Elements
+  const openPreviewModalBtn = document.getElementById('openPreviewModalBtn');
+  const closePreviewModalBtn = document.getElementById('closePreviewModalBtn');
+  const closePreviewModalFooterBtn = document.getElementById('closePreviewModalFooterBtn');
+  const modalGeneratePdfBtn = document.getElementById('modalGeneratePdfBtn');
+  const previewModal = document.getElementById('previewModal');
+
   const previewSheetsContainer = document.getElementById('previewSheetsContainer');
   const sheetsCountTag = document.getElementById('sheetsCountTag');
   const aspectTag = document.getElementById('aspectTag');
   const toastContainer = document.getElementById('toastContainer');
 
   // ==========================================
-  // 3. Helper Functions
+  // 3. LocalStorage Persistence Functions
+  // ==========================================
+  function saveStateToLocalStorage() {
+    try {
+      const payload = {
+        activeSheetId: state.activeSheetId,
+        sheets: state.sheets,
+        gridCols: state.gridCols,
+        paperSize: state.paperSize
+      };
+      localStorage.setItem(LOCAL_STORAGE_KEY, JSON.stringify(payload));
+    } catch (e) {
+      console.warn('LocalStorage quota limit reached or not supported.', e);
+    }
+  }
+
+  function loadStateFromLocalStorage() {
+    try {
+      const savedData = localStorage.getItem(LOCAL_STORAGE_KEY);
+      if (savedData) {
+        const parsed = JSON.parse(savedData);
+        if (parsed && Array.isArray(parsed.sheets) && parsed.sheets.length > 0) {
+          state.sheets = parsed.sheets;
+          state.activeSheetId = parsed.activeSheetId || parsed.sheets[0].id;
+          state.gridCols = parsed.gridCols || 3;
+          state.paperSize = parsed.paperSize || 'a4-landscape';
+          
+          // Sync select controls
+          gridColsSelect.value = String(state.gridCols);
+          paperSizeSelect.value = state.paperSize;
+
+          showToast('Draft sebelumnya otomatis dimuat kembali.');
+        }
+      }
+    } catch (e) {
+      console.error('Error loading state from localStorage:', e);
+    }
+  }
+
+  function resetDraft() {
+    if (confirm('Apakah Anda yakin ingin menghapus semua data dan membuat draft baru?')) {
+      localStorage.removeItem(LOCAL_STORAGE_KEY);
+      state = {
+        activeSheetId: 'sheet_' + Date.now(),
+        sheets: [
+          {
+            id: 'sheet_' + Date.now(),
+            dateText: '1 AGUSTUS 2026',
+            images: []
+          }
+        ],
+        gridCols: 3,
+        paperSize: 'a4-landscape'
+      };
+      gridColsSelect.value = '3';
+      paperSizeSelect.value = 'a4-landscape';
+      renderUI();
+      showToast('Draft berhasil di-reset.', 'error');
+    }
+  }
+
+  // ==========================================
+  // 4. Helper & Formatting Functions
   // ==========================================
   function getActiveSheet() {
     let sheet = state.sheets.find(s => s.id === state.activeSheetId);
@@ -154,7 +226,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ==========================================
-  // 4. Sheet Management (Tambah Kertas)
+  // 5. Sheet Management (Tambah Kertas)
   // ==========================================
   function addNewSheet() {
     const sheetNum = state.sheets.length + 1;
@@ -203,7 +275,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ==========================================
-  // 5. File Upload & Processing
+  // 6. File Upload & Processing
   // ==========================================
   async function handleFiles(files) {
     const activeSheet = getActiveSheet();
@@ -275,7 +347,7 @@ document.addEventListener('DOMContentLoaded', () => {
   });
 
   // ==========================================
-  // 6. Reordering & SortableJS
+  // 7. Reordering & SortableJS
   // ==========================================
   function initSortable() {
     if (sortableInstance) {
@@ -302,18 +374,51 @@ document.addEventListener('DOMContentLoaded', () => {
         });
 
         activeSheet.images = newImagesArray;
-        renderPreviewGrid();
+        saveStateToLocalStorage();
+        if (previewModal.classList.contains('open')) {
+          renderPreviewGrid();
+        }
       }
     });
   }
 
   // ==========================================
-  // 7. UI Render Functions
+  // 8. Popup Modal Preview Logic
+  // ==========================================
+  function openPreviewModal() {
+    renderPreviewGrid();
+    previewModal.classList.add('open');
+    document.body.style.overflow = 'hidden';
+  }
+
+  function closePreviewModal() {
+    previewModal.classList.remove('open');
+    document.body.style.overflow = '';
+  }
+
+  openPreviewModalBtn.addEventListener('click', openPreviewModal);
+  closePreviewModalBtn.addEventListener('click', closePreviewModal);
+  closePreviewModalFooterBtn.addEventListener('click', closePreviewModal);
+
+  previewModal.addEventListener('click', (e) => {
+    if (e.target === previewModal) {
+      closePreviewModal();
+    }
+  });
+
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape' && previewModal.classList.contains('open')) {
+      closePreviewModal();
+    }
+  });
+
+  // ==========================================
+  // 9. UI Render Functions
   // ==========================================
   function renderUI() {
     renderSheetTabs();
     renderActiveSheetControls();
-    renderPreviewGrid();
+    saveStateToLocalStorage();
   }
 
   function renderSheetTabs() {
@@ -474,11 +579,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
       sheetEl.innerHTML = sheetHtml;
 
-      // Click preview sheet to activate it
       sheetEl.addEventListener('click', () => {
         if (state.activeSheetId !== sheet.id) {
           state.activeSheetId = sheet.id;
           renderUI();
+          renderPreviewGrid();
         }
       });
 
@@ -487,8 +592,9 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // ==========================================
-  // 8. Event Listeners & Actions
+  // 10. Event Listeners & Actions
   // ==========================================
+  resetDraftBtn.addEventListener('click', resetDraft);
   addSheetBtnHeader.addEventListener('click', addNewSheet);
 
   dateInput.addEventListener('input', () => {
@@ -496,7 +602,7 @@ document.addEventListener('DOMContentLoaded', () => {
     if (activeSheet) {
       activeSheet.dateText = dateInput.value;
       renderSheetTabs();
-      renderPreviewGrid();
+      saveStateToLocalStorage();
     }
   });
 
@@ -506,7 +612,7 @@ document.addEventListener('DOMContentLoaded', () => {
       dateInput.value = getIndonesianDateString();
       activeSheet.dateText = dateInput.value;
       renderSheetTabs();
-      renderPreviewGrid();
+      saveStateToLocalStorage();
       showToast('Tanggal diubah ke hari ini.');
     }
   });
@@ -517,7 +623,7 @@ document.addEventListener('DOMContentLoaded', () => {
       dateInput.value = dateInput.value.toUpperCase();
       activeSheet.dateText = dateInput.value;
       renderSheetTabs();
-      renderPreviewGrid();
+      saveStateToLocalStorage();
     }
   });
 
@@ -534,16 +640,16 @@ document.addEventListener('DOMContentLoaded', () => {
 
   gridColsSelect.addEventListener('change', (e) => {
     state.gridCols = parseInt(e.target.value, 10) || 3;
-    renderPreviewGrid();
+    saveStateToLocalStorage();
   });
 
   paperSizeSelect.addEventListener('change', (e) => {
     state.paperSize = e.target.value;
-    renderPreviewGrid();
+    saveStateToLocalStorage();
   });
 
   // ==========================================
-  // 9. Generate & Download PDF
+  // 11. Generate & Download PDF
   // ==========================================
   async function generatePDF() {
     const totalImages = state.sheets.reduce((acc, s) => acc + s.images.length, 0);
@@ -552,11 +658,19 @@ document.addEventListener('DOMContentLoaded', () => {
       return;
     }
 
-    const btnText = generatePdfBtn.querySelector('.btn-text');
-    const btnLoader = generatePdfBtn.querySelector('.btn-loader');
-    generatePdfBtn.disabled = true;
-    btnText.style.display = 'none';
-    btnLoader.style.display = 'flex';
+    // Always ensure preview is rendered before generating PDF
+    renderPreviewGrid();
+
+    const targets = [generatePdfBtn, modalGeneratePdfBtn];
+    targets.forEach(btn => {
+      if (btn) {
+        btn.disabled = true;
+        const txt = btn.querySelector('.btn-text');
+        const ldr = btn.querySelector('.btn-loader');
+        if (txt) txt.style.display = 'none';
+        if (ldr) ldr.style.display = 'flex';
+      }
+    });
 
     try {
       const { jsPDF } = window.jspdf;
@@ -597,18 +711,27 @@ document.addEventListener('DOMContentLoaded', () => {
       pdf.save(filename);
 
       showToast(`PDF ${filename} (${sheetElements.length} sheet) berhasil dibuat & didownload!`);
+      closePreviewModal();
     } catch (error) {
       console.error('Error generating PDF:', error);
       showToast('Gagal membuat PDF. Silakan coba lagi.', 'error');
     } finally {
-      generatePdfBtn.disabled = false;
-      btnText.style.display = 'flex';
-      btnLoader.style.display = 'none';
+      targets.forEach(btn => {
+        if (btn) {
+          btn.disabled = false;
+          const txt = btn.querySelector('.btn-text');
+          const ldr = btn.querySelector('.btn-loader');
+          if (txt) txt.style.display = 'flex';
+          if (ldr) ldr.style.display = 'none';
+        }
+      });
     }
   }
 
   generatePdfBtn.addEventListener('click', generatePDF);
+  modalGeneratePdfBtn.addEventListener('click', generatePDF);
 
-  // Initial Render Setup
+  // Initial Load from LocalStorage & Render
+  loadStateFromLocalStorage();
   renderUI();
 });
